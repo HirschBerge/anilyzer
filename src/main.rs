@@ -35,6 +35,10 @@ fn main() {
             );
         }
     }
+    println!(
+        "{}",
+        format!("Total Shows Parsed: {}", sorted_results.len()).bright_blue()
+    )
 }
 
 fn build_tv_show_data(
@@ -44,40 +48,40 @@ fn build_tv_show_data(
     // Iterate over the TV show directories
     for show_entry in fs::read_dir(root_path).expect("Failed to read root directory") {
         if let Ok(show_dir) = show_entry {
-            if let Ok(show_name) = show_dir.file_name().into_string() {
-                let mut seasons: HashMap<String, u32> = HashMap::new();
-
-                // Iterate over the seasons (subdirectories) of the current show
-                for season_entry in
-                    fs::read_dir(show_dir.path()).expect("Failed to read show directory")
-                {
-                    if let Ok(season_dir) = season_entry {
-                        // let season_number = season_dir.path().to_string_lossy().to_string();
-                        // Count the episodes in the season (subdirectory)
-                        if season_dir.file_type().map_or(false, |ft| ft.is_dir()) {
-                            let episode_count = season_dir
-                                .path()
-                                .read_dir()
-                                .expect("Failed to read season directory")
-                                .filter_map(|entry| entry.ok())
-                                .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_file()))
-                                .count() as u32;
-
-                            let season_number =
-                                season_dir.file_name().to_string_lossy().to_string();
-                            // Add season information to the HashMap
-                            seasons.insert(season_number, episode_count);
+            if show_dir.file_type().map_or(false, |ft| ft.is_dir()) {
+                if let Ok(show_name) = show_dir.file_name().into_string() {
+                    let mut seasons: HashMap<String, u32> = HashMap::new();
+                    // Iterate over the seasons (subdirectories) of the current show
+                    for season_entry in
+                        fs::read_dir(show_dir.path()).expect("Failed to read show directory")
+                    {
+                        if let Ok(season_dir) = season_entry {
+                            // Check if it's a directory and not a file
+                            if season_dir.file_type().map_or(false, |ft| ft.is_dir()) {
+                                let episode_count = season_dir
+                                    .path()
+                                    .read_dir()
+                                    .expect("Failed to read season directory")
+                                    .filter_map(|entry| entry.ok())
+                                    .filter(|entry| {
+                                        entry.file_type().map_or(false, |ft| ft.is_file())
+                                    })
+                                    .count()
+                                    as u32;
+                                let season_number =
+                                    season_dir.file_name().to_string_lossy().to_string();
+                                // Add season information to the HashMap
+                                seasons.insert(season_number, episode_count);
+                            }
                         }
                     }
+                    // dbg!(&show_name, &seasons);
+                    // Add show information to the HashMap
+                    tv_shows.insert(show_name, seasons);
                 }
-
-                // dbg!(&show_name, &seasons);
-                // Add show information to the HashMap
-                tv_shows.insert(show_name, seasons);
             }
         }
     }
 
-    // Return the completed TV show data
     tv_shows.clone()
 }
