@@ -1,8 +1,22 @@
+use clap::Parser;
 use colored::*;
 use std::collections::HashMap;
 use std::fs;
+
+#[derive(Parser, Debug)]
+#[command(
+    author = "HirschBerge",
+    version = "v1.0.1",
+    about = "Parses Plex or Jellyfin Libraries."
+)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, default_value = "/mnt/NAS/Anime/")]
+    path: String,
+}
 fn main() {
-    let root_path = "/mnt/NAS/Anime"; // Change this to your root directory
+    let args = Args::parse();
+    let root_path = args.path; // Change this to your root directory
 
     // Create a nested HashMap to store show information
     let mut tv_shows: HashMap<String, HashMap<String, u32>> = HashMap::new();
@@ -42,7 +56,7 @@ fn main() {
 }
 
 fn build_tv_show_data(
-    root_path: &str,
+    root_path: String,
     tv_shows: &mut HashMap<String, HashMap<String, u32>>,
 ) -> HashMap<String, HashMap<String, u32>> {
     // Iterate over the TV show directories
