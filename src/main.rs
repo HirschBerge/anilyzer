@@ -1,7 +1,7 @@
 use clap::Parser;
 use colored::*;
-use std::collections::HashMap;
-use std::{clone, fs};
+
+use std::fs;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -68,10 +68,14 @@ fn main() {
     // Call the function to build the TV show data
     let mut results = build_tv_show_data(root_path);
     results.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+    let mut count = 0;
     for show in results {
         let sorted_show = show.sorted_by_season_title();
         sorted_show.print();
+        count += 1;
     }
+    let totals = format!("Total Shows parsed: {count}").bright_blue();
+    println!("{totals}");
 }
 
 fn build_tv_show_data(root_path: String) -> Vec<Show> {
