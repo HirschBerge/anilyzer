@@ -1,7 +1,7 @@
 use clap::Parser;
 use colored::*;
 use std::collections::HashMap;
-use std::fs;
+use std::{clone, fs};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -14,57 +14,79 @@ struct Args {
     #[arg(short, long, default_value = "/mnt/NAS/Anime/")]
     path: String,
 }
+#[derive(Debug, Clone)]
+struct Show {
+    title: String,
+    season_cnt: u8,
+    season_names: Vec<Season>,
+}
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)] // Add Clone here
+struct Season {
+    season_of: String,
+    season_title: String,
+    epi_count: u16,
+    // titles: Vec<String>, //Not currently useful.
+}
+
+impl Show {
+    fn push_season(&mut self, szn: Season) {
+        self.season_names.push(szn);
+    }
+    fn print(self) {
+        println!("{}", self.title.purple());
+        let mut szn_cnt_string = "".to_string();
+        if self.season_cnt == 1 {
+            szn_cnt_string = format!("  {} Season", &self.season_cnt);
+        } else {
+            szn_cnt_string = format!("  {} Seasons", &self.season_cnt);
+        }
+        println!("{}", szn_cnt_string.bright_red());
+        for seaz in self.season_names {
+            let e_count = format!("{} Episodes", seaz.epi_count).bright_green();
+            println!("    {}: {}", seaz.season_title.bright_cyan(), e_count);
+        }
+    }
+    fn sorted_by_season_title(&self) -> Show {
+        let mut sorted_seasons = self.season_names.clone();
+        sorted_seasons.sort_by(|a, b| a.season_title.cmp(&b.season_title));
+
+        Show {
+            title: self.title.clone(),
+            season_cnt: self.season_cnt,
+            season_names: sorted_seasons,
+        }
+    }
+}
+
 fn main() {
     let args = Args::parse();
     let root_path = args.path; // Change this to your root directory
 
     // Create a nested HashMap to store show information
-    let mut tv_shows: HashMap<String, HashMap<String, u32>> = HashMap::new();
+    // let mut tv_shows: HashMap<String , HashMap<String, u32>> = HashMap::new();
 
     // Call the function to build the TV show data
-    let results = build_tv_show_data(root_path, &mut tv_shows);
-
-    // Convert HashMap to a vector of key-value pairs and sort by show name
-    let mut sorted_results: Vec<_> = results.into_iter().collect();
-    sorted_results.sort_by_key(|(show_name, _)| show_name.clone());
-
-    // Print the constructed data structure
-    for (show_name, show_info) in &sorted_results {
-        let season_cnt = show_info.len() as i32;
-        println!("{}:", show_name.purple());
-        if &season_cnt <= &1 {
-            println!("{}", format!("  {} Season:", season_cnt).bright_red());
-        } else {
-            println!("{}", format!("  {} Seasons:", season_cnt).bright_red());
-        }
-        // Convert HashMap to a vector of key-value pairs and sort by season name
-        let mut sorted_seasons: Vec<_> = show_info.into_iter().collect();
-        sorted_seasons.sort_by_key(|(season, _)| (*season).clone());
-
-        for (season, episodes) in &sorted_seasons {
-            println!(
-                "    {}: {}",
-                season.bright_cyan(),
-                format!("{} episodes", episodes).to_string().bright_green()
-            );
-        }
+    let mut results = build_tv_show_data(root_path);
+    results.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+    for show in results {
+        let sorted_show = show.sorted_by_season_title();
+        sorted_show.print();
     }
-    println!(
-        "{}",
-        format!("Total Shows Parsed: {}", sorted_results.len()).bright_blue()
-    )
 }
 
-fn build_tv_show_data(
-    root_path: String,
-    tv_shows: &mut HashMap<String, HashMap<String, u32>>,
-) -> HashMap<String, HashMap<String, u32>> {
+fn build_tv_show_data(root_path: String) -> Vec<Show> {
+    let mut all_shows: Vec<Show> = vec![];
     // Iterate over the TV show directories
     for show_entry in fs::read_dir(root_path).expect("Failed to read root directory") {
         if let Ok(show_dir) = show_entry {
             if show_dir.file_type().map_or(false, |ft| ft.is_dir()) {
                 if let Ok(show_name) = show_dir.file_name().into_string() {
-                    let mut seasons: HashMap<String, u32> = HashMap::new();
+                    let mut show = Show {
+                        title: show_name.clone(),
+                        season_cnt: fs::read_dir(show_dir.path()).expect("Show here").count() as u8,
+                        season_names: vec![],
+                    };
+                    // let mut seasons: HashMap<String, u32> = HashMap::new();
                     // Iterate over the seasons (subdirectories) of the current show
                     for season_entry in
                         fs::read_dir(show_dir.path()).expect("Failed to read show directory")
@@ -81,21 +103,30 @@ fn build_tv_show_data(
                                         entry.file_type().map_or(false, |ft| ft.is_file())
                                     })
                                     .count()
-                                    as u32;
+                                    as u16;
                                 let season_number =
                                     season_dir.file_name().to_string_lossy().to_string();
                                 // Add season information to the HashMap
-                                seasons.insert(season_number, episode_count);
+                                let szn = Season {
+                                    season_of: show_name.clone(),
+                                    season_title: season_number,
+                                    epi_count: episode_count,
+                                };
+                                // szn.update_meta(season_number, episode_count);
+                                show.push_season(szn);
+                                // dbg!(szn);
                             }
                         }
                     }
                     // dbg!(&show_name, &seasons);
+                    // dbg!(show);
                     // Add show information to the HashMap
-                    tv_shows.insert(show_name, seasons);
+                    // tv_shows.insert(show_name, seasons);
+                    all_shows.push(show)
                 }
             }
         }
     }
-
-    tv_shows.clone()
+    all_shows
+    // tv_shows.clone()
 }
