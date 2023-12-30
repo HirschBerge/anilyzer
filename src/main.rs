@@ -87,7 +87,11 @@ fn build_tv_show_data(root_path: String) -> Vec<Show> {
                 if let Ok(show_name) = show_dir.file_name().into_string() {
                     let mut show = Show {
                         title: show_name.clone(),
-                        season_cnt: fs::read_dir(show_dir.path()).expect("Show here").count() as u8,
+                        season_cnt: fs::read_dir(show_dir.path())
+                            .expect("Failed to read show directory")
+                            .filter_map(|entry| entry.ok())
+                            .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_dir()))
+                            .count() as u8,
                         season_names: vec![],
                     };
                     // let mut seasons: HashMap<String, u32> = HashMap::new();
@@ -116,9 +120,7 @@ fn build_tv_show_data(root_path: String) -> Vec<Show> {
                                     season_title: season_number,
                                     epi_count: episode_count,
                                 };
-                                // szn.update_meta(season_number, episode_count);
                                 show.push_season(szn);
-                                // dbg!(szn);
                             }
                         }
                     }
