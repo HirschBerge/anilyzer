@@ -10,7 +10,6 @@ use std::fs;
     about = "Parses Plex or Jellyfin Libraries."
 )]
 struct Args {
-    /// Name of the person to greet
     #[arg(short, long, default_value = "/mnt/NAS/Anime/")]
     path: String,
 }
@@ -25,7 +24,6 @@ struct Season {
     season_of: String,
     season_title: String,
     epi_count: u16,
-    // titles: Vec<String>, //Not currently useful.
 }
 
 impl Show {
@@ -62,10 +60,6 @@ fn main() {
     let args = Args::parse();
     let root_path = args.path; // Change this to your root directory
 
-    // Create a nested HashMap to store show information
-    // let mut tv_shows: HashMap<String , HashMap<String, u32>> = HashMap::new();
-
-    // Call the function to build the TV show data
     let mut results = build_tv_show_data(root_path);
     results.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
     let mut count = 0;
@@ -80,59 +74,53 @@ fn main() {
 
 fn build_tv_show_data(root_path: String) -> Vec<Show> {
     let mut all_shows: Vec<Show> = vec![];
-    // Iterate over the TV show directories
-    for show_entry in fs::read_dir(root_path).expect("Failed to read root directory") {
-        if let Ok(show_dir) = show_entry {
-            if show_dir.file_type().map_or(false, |ft| ft.is_dir()) {
-                if let Ok(show_name) = show_dir.file_name().into_string() {
-                    let mut show = Show {
-                        title: show_name.clone(),
-                        season_cnt: fs::read_dir(show_dir.path())
-                            .expect("Failed to read show directory")
+
+    fs::read_dir(root_path)
+        .expect("Failed to read root directory")
+        .filter_map(|show_entry| show_entry.ok())
+        .filter(|show_dir| show_dir.file_type().map_or(false, |ft| ft.is_dir()))
+        .filter_map(|show_dir| {
+            show_dir.file_name().into_string().ok().map(|show_name| {
+                let mut show = Show {
+                    title: show_name.clone(),
+                    season_cnt: fs::read_dir(show_dir.path())
+                        .expect("Failed to read show directory")
+                        .filter_map(|entry| entry.ok())
+                        .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_dir()))
+                        .count() as u8,
+                    season_names: vec![],
+                };
+
+                fs::read_dir(show_dir.path())
+                    .expect("Failed to read show directory")
+                    .filter_map(|season_entry| season_entry.ok())
+                    .filter(|season_dir| season_dir.file_type().map_or(false, |ft| ft.is_dir()))
+                    .map(|season_dir| {
+                        let episode_count = season_dir
+                            .path()
+                            .read_dir()
+                            .expect("Failed to read season directory")
                             .filter_map(|entry| entry.ok())
-                            .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_dir()))
-                            .count() as u8,
-                        season_names: vec![],
-                    };
-                    // let mut seasons: HashMap<String, u32> = HashMap::new();
-                    // Iterate over the seasons (subdirectories) of the current show
-                    for season_entry in
-                        fs::read_dir(show_dir.path()).expect("Failed to read show directory")
-                    {
-                        if let Ok(season_dir) = season_entry {
-                            // Check if it's a directory and not a file
-                            if season_dir.file_type().map_or(false, |ft| ft.is_dir()) {
-                                let episode_count = season_dir
-                                    .path()
-                                    .read_dir()
-                                    .expect("Failed to read season directory")
-                                    .filter_map(|entry| entry.ok())
-                                    .filter(|entry| {
-                                        entry.file_type().map_or(false, |ft| ft.is_file())
-                                    })
-                                    .count()
-                                    as u16;
-                                let season_number =
-                                    season_dir.file_name().to_string_lossy().to_string();
-                                // Add season information to the HashMap
-                                let szn = Season {
-                                    season_of: show_name.clone(),
-                                    season_title: season_number,
-                                    epi_count: episode_count,
-                                };
-                                show.push_season(szn);
-                            }
-                        }
-                    }
-                    // dbg!(&show_name, &seasons);
-                    // dbg!(show);
-                    // Add show information to the HashMap
-                    // tv_shows.insert(show_name, seasons);
-                    all_shows.push(show)
-                }
-            }
-        }
-    }
+                            .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_file()))
+                            .count() as u16;
+
+                        let season_number = season_dir.file_name().to_string_lossy().to_string();
+
+                        let szn = Season {
+                            season_of: show_name.clone(),
+                            season_title: season_number,
+                            epi_count: episode_count,
+                        };
+
+                        show.push_season(szn);
+                    })
+                    .for_each(|_| ()); // Using map, so we need to consume the iterator
+
+                Some(show)
+            })
+        })
+        .for_each(|show| all_shows.push(show.unwrap()));
+
     all_shows
-    // tv_shows.clone()
 }
+.unwrap()
