@@ -32,25 +32,29 @@ struct Season {
 
 #[allow(unused_assignments)]
 impl Show {
-    /// Adds a season to the TV show.
-    ///
-    /// # Example
-    /// ```
-    /// let mut show = Show { title: "Example Show".to_string(), season_cnt: 0, season_names: vec![] };
-    /// let season = Season { season_of: "Example Show".to_string(), season_title: "Season 1".to_string(), epi_count: 10 };
-    /// show.push_season(season);
-    /// ```
-    fn push_season(&mut self, szn: Season) {
+    /**
+    Adds a season to the Show.
+
+    # Example
+    ```
+    let mut show = Show { title: "Example Show".to_string(), season_cnt: 0, season_names: vec![] };
+    let season = Season { season_of: "Example Show".to_string(), season_title: "Season 1".to_string(), epi_count: 10 };
+    show.add_season(season);
+    ```
+    */
+    fn add_season(&mut self, szn: Season) {
         self.season_names.push(szn);
     }
 
-    /// Prints the TV show details.
-    ///
-    /// # Example
-    /// ```
-    /// let show = Show { title: "Example Show".to_string(), season_cnt: 2, season_names: vec![] };
-    /// show.print();
-    /// ```
+    /**
+    Prints the show details.
+
+    # Example
+    ```
+    let show = Show { title: "Example Show".to_string(), season_cnt: 2, season_names: vec![] };
+    show.print();
+    ```
+    */
     fn print(self) {
         println!("{}", self.title.purple());
         let mut szn_cnt_string: String = "".to_string();
@@ -66,14 +70,16 @@ impl Show {
         }
     }
 
-    /// Returns a new TV show with seasons sorted by title.
-    ///
-    /// # Example
-    /// ```
-    /// let show = Show { title: "Example Show".to_string(), season_cnt: 2, season_names: vec![] };
-    /// let sorted_show = show.sorted_by_season_title();
-    /// ```
-    fn sorted_by_season_title(&self) -> Show {
+    /**
+    Returns a new struct of type Show with seasons sorted by title.
+
+    # Example
+    ```
+    let show = Show { title: "Example Show".to_string(), season_cnt: 2, season_names: vec![] };
+    let sorted_show = show.sort();
+    ```
+    */
+    fn sort(&self) -> Show {
         let mut sorted_seasons = self.season_names.clone();
         sorted_seasons.sort_by(|a, b| a.season_title.cmp(&b.season_title));
         Show {
@@ -84,13 +90,15 @@ impl Show {
     }
 }
 
-/// Builds TV show data from the root path.
-///
-/// # Example
-/// ```
-/// let root_path = "/path/to/your/library/".to_string();
-/// let results = build_tv_show_data(root_path);
-/// ```
+/**
+Builds TV show data from a given path.
+
+# Example
+```
+let root_path = "/path/to/your/library/".to_string();
+let results = build_tv_show_data(root_path);
+```
+*/
 fn build_tv_show_data(root_path: String) -> Vec<Show> {
     let mut all_shows: Vec<Show> = vec![];
     fs::read_dir(root_path)
@@ -126,7 +134,7 @@ fn build_tv_show_data(root_path: String) -> Vec<Show> {
                             season_title: season_number,
                             epi_count: episode_count,
                         };
-                        show.push_season(szn);
+                        show.add_season(szn);
                     })
                     .for_each(|_| ()); // Using map, so we need to consume the iterator
                 Some(show)
@@ -143,7 +151,7 @@ fn main() {
     results.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
     let mut count = 0;
     for show in results {
-        let sorted_show = show.sorted_by_season_title();
+        let sorted_show = show.sort();
         sorted_show.print();
         count += 1;
     }
