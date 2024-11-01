@@ -101,14 +101,18 @@ let root_path = "/path/to/your/library/".to_string();
 let results = build_tv_show_data(root_path);
 ```
 */
+
 fn build_tv_show_data(root_path: String, search: String) -> Vec<Show> {
     let mut all_shows: Vec<Show> = vec![];
+
+    // Read the root directory
     fs::read_dir(root_path)
         .expect("Failed to read root directory")
-        .filter_map(|show_entry| show_entry.ok())
+        .filter_map(|show_entry| show_entry.ok()) // Ignore errors
         .filter(|show_dir| show_dir.file_type().map_or(false, |ft| ft.is_dir()))
         .filter_map(|show_dir| {
-            show_dir.file_name().into_string().ok().map(|show_name| {
+            let show_name = show_dir.file_name().into_string().ok()?;
+            if show_name.to_lowercase().contains(&search.to_lowercase()) {
                 let mut show = Show {
                     title: show_name.clone(),
                     season_cnt: fs::read_dir(show_dir.path())
@@ -118,11 +122,13 @@ fn build_tv_show_data(root_path: String, search: String) -> Vec<Show> {
                         .count() as u8,
                     season_names: vec![],
                 };
+
+                // Read seasons in the show directory
                 fs::read_dir(show_dir.path())
                     .expect("Failed to read show directory")
                     .filter_map(|season_entry| season_entry.ok())
                     .filter(|season_dir| season_dir.file_type().map_or(false, |ft| ft.is_dir()))
-                    .map(|season_dir| {
+                    .for_each(|season_dir| {
                         let episode_count = season_dir
                             .path()
                             .read_dir()
@@ -130,28 +136,24 @@ fn build_tv_show_data(root_path: String, search: String) -> Vec<Show> {
                             .filter_map(|entry| entry.ok())
                             .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_file()))
                             .count() as u16;
+
                         let season_number = season_dir.file_name().to_string_lossy().to_string();
                         let szn = Season {
                             season_of: show_name.clone(),
                             season_title: season_number,
                             epi_count: episode_count,
                         };
-                        show.add_season(szn);
-                    })
-                    .for_each(|_| ()); // Using map, so we need to consume the iterator
-                if show.title.as_str().contains(&search) {
-                    Some(show)
-                } else {
-                    None
-                }
-            })
-        })
-        .for_each(|show| {
-            if let Some(s) = show {
-                all_shows.push(s)
+                        show.add_season(szn); // Add season to show
+                    });
+
+                Some(show) // Return the constructed show
+            } else {
+                None // Do not return if the title does not match
             }
-        });
-    all_shows
+        })
+        .for_each(|show| all_shows.push(show)); // Push all valid shows
+
+    all_shows // Return the collected shows
 }
 
 fn main() {
