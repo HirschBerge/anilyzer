@@ -12,6 +12,8 @@ use std::fs;
 struct Args {
     #[arg(short, long, default_value = "/mnt/NAS/Anime/")]
     path: String,
+    #[arg(short, long, default_value = "")]
+    title: String,
 }
 
 /// Represents a TV show.
@@ -99,7 +101,7 @@ let root_path = "/path/to/your/library/".to_string();
 let results = build_tv_show_data(root_path);
 ```
 */
-fn build_tv_show_data(root_path: String) -> Vec<Show> {
+fn build_tv_show_data(root_path: String, search: String) -> Vec<Show> {
     let mut all_shows: Vec<Show> = vec![];
     fs::read_dir(root_path)
         .expect("Failed to read root directory")
@@ -137,17 +139,25 @@ fn build_tv_show_data(root_path: String) -> Vec<Show> {
                         show.add_season(szn);
                     })
                     .for_each(|_| ()); // Using map, so we need to consume the iterator
-                Some(show)
+                if show.title.as_str().contains(&search) {
+                    Some(show)
+                } else {
+                    None
+                }
             })
         })
-        .for_each(|show| all_shows.push(show.unwrap()));
+        .for_each(|show| {
+            if let Some(s) = show {
+                all_shows.push(s)
+            }
+        });
     all_shows
 }
 
 fn main() {
     let args = Args::parse();
     let root_path = args.path; // Change this to your root directory
-    let mut results = build_tv_show_data(root_path);
+    let mut results = build_tv_show_data(root_path, args.title);
     results.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
     let mut count = 0;
     for show in results {
