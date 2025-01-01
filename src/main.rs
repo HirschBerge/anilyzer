@@ -101,7 +101,6 @@ let root_path = "/path/to/your/library/".to_string();
 let results = build_tv_show_data(root_path);
 ```
 */
-
 fn build_tv_show_data(root_path: String, search: String) -> Vec<Show> {
     let mut all_shows: Vec<Show> = vec![];
 
